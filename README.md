@@ -15,7 +15,8 @@ A full-stack web application that generates personalized travel itineraries with
 
 ### 🗺️ **Itinerary & Map Features**
 
-- Generate customized travel recommendations
+- **AI-Powered Generation** using OpenAI GPT (intelligent, real-time recommendations)
+- Generate customized travel recommendations for **ANY destination**
 - Interactive Leaflet.js map with markers for:
   - 🏨 Hotels & Accommodations
   - 🍽️ Restaurants & Food Options
@@ -27,13 +28,14 @@ A full-stack web application that generates personalized travel itineraries with
 
 ### 📍 **Supported Destinations**
 
-- 🇮🇳 **Bengaluru** - Bangalore's tech hub with detailed attractions
-- 🇮🇳 **Delhi** - India's capital with historic sites
-- *(More cities coming in v1.1)*
+- 🌍 **Any City Worldwide!** - Works with any destination (with OpenAI API key)
+- 🇮🇳 **Bengaluru & Delhi** - Fallback support (no API key needed)
+- ✨ Intelligent recommendations tailored to location
+- 💰 Budget-aware suggestions
 
 ### 💡 **Smart Recommendations**
 
-- Day-by-day activity suggestions
+- AI-generated day-by-day activity suggestions
 - Budget-conscious recommendations
 - Transportation mode preferences
 - Location-based point of interest clustering
@@ -106,7 +108,7 @@ SmartTravelPlanner/
    ```
 
 4. **Configure environment variables**
-   - Update `configure.env` with your database credentials:
+   - Update `configure.env` with your database and API credentials:
 
    ```env
    MYSQL_HOST=localhost
@@ -114,7 +116,12 @@ SmartTravelPlanner/
    MYSQL_PASSWORD=your_password
    MYSQL_DB=travel_db
    SECRET_KEY=your_secret_key
+   OPENAI_API_KEY=your_openai_api_key_here
    ```
+   
+   **Note**: OpenAI API key is optional. Without it, the app uses template-based itineraries (Bengaluru & Delhi only).
+   
+   👉 [Get your free OpenAI API key →](./AI_SETUP_GUIDE.md)
 
 5. **Run the application**
    ```bash
@@ -130,8 +137,9 @@ SmartTravelPlanner/
 ### Backend
 
 - **Framework**: Flask 2.3.2
-- **Database**: MySQL 8.0.33
-- **Authentication**: Flask-CORS
+- **Database**: MySQL 8.0.33 (optional, with demo mode fallback)
+- **AI Engine**: OpenAI GPT-3.5-turbo (intelligent itinerary generation)
+- **Authentication**: Flask-CORS & werkzeug.security
 - **Environment Management**: python-dotenv
 
 ### Frontend
@@ -139,8 +147,8 @@ SmartTravelPlanner/
 - **HTML5** - Semantic markup
 - **CSS3** - Modern responsive styling
 - **JavaScript** - Dynamic interactivity
-- **Leaflet.js** - Interactive mapping
-- **RESTful API** - Communication with backend
+- **Leaflet.js** - Interactive mapping with real coordinates
+- **RESTful API** - Real-time communication with backend
 
 ---
 
@@ -157,23 +165,31 @@ SmartTravelPlanner/
 
 | Method | Endpoint | Description                   |
 | ------ | -------- | ----------------------------- |
-| POST   | `/ai`    | Generate itinerary recommendations |
+| POST   | `/ai`    | Generate AI-powered itinerary using OpenAI GPT |
+
+**Features:**
+- ✨ **Works with ANY destination worldwide** (with OpenAI API key)
+- 🤖 **AI-Powered** - Uses OpenAI GPT-3.5-turbo for intelligent recommendations
+- ⚡ **Real-time** - Fast generation (2-5 seconds)
+- 💰 **Budget-aware** - Tailored suggestions based on budget
+- 🗺️ **Accurate coordinates** - Real lat/lng for all locations
 
 **Example Request:**
 
 ```json
 {
-  "place": "Bengaluru",
+  "place": "Paris",
   "days": 5,
   "budget": 2000,
   "transport": "flight"
 }
 ```
 
-**Supported Destinations (v1.0):**
-- 🇮🇳 **Bengaluru** - India's Tech Hub
-- 🇮🇳 **Delhi** - India's Capital
-- ⚠️ Note: Other cities require database expansion (Coming Soon)
+**Supported Destinations:**
+- 🌍 **Any city worldwide** with OpenAI API key enabled
+- 🇮🇳 **Bengaluru & Delhi** - Works without API key (template-based)
+
+**[📖 Setup AI Integration &rarr;](./AI_SETUP_GUIDE.md)**
 
 ---
 
@@ -209,14 +225,16 @@ SmartTravelPlanner/
 ### Users Table
 
 - `id` - Primary key (AUTO_INCREMENT)
-- `email` - User email (UNIQUE)
+- `email` - User email (UNIQUE, required for login)
 - `password` - Hashed password using werkzeug.security
 - `created_at` - Account creation timestamp (Default: CURRENT_TIMESTAMP)
 
 **Current Implementation:**
-- User authentication and registration only
-- Itineraries stored in frontend localStorage (not in database yet)
-- Ready for future database expansion
+- User authentication and registration working
+- Passwords securely hashed with werkzeug
+- Database is optional (app runs in demo mode without MySQL)
+- Itineraries are generated fresh via AI API (not persisted to database)
+- Future: Database persistence for user itinerary history
 
 ---
 
@@ -260,24 +278,28 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 💡 Future Enhancements (Roadmap)
 
-### Phase 1 (v1.1)
-- [ ] Add 5+ more Indian cities (Mumbai, Goa, Jaipur, etc.)
-- [ ] Itinerary persistence to database
+### Phase 1 (v1.1) - In Progress ✅
+- ✅ Real AI integration with OpenAI GPT
+- ✅ Support for ANY destination worldwide
+- ✅ Real-time itinerary generation
+- [ ] Itinerary caching to reduce API calls
 - [ ] User itinerary history and favorites
+- [ ] Advanced cost estimation
 
 ### Phase 2 (v1.2)
-- [ ] Real AI integration (OpenAI API or similar)
+- [ ] Multi-language support (Hindi, Spanish, French)
 - [ ] Real-time flight price tracking
 - [ ] Hotel booking integration
-- [ ] Multi-language support (Hindi, Spanish, etc.)
+- [ ] Weather forecasts for destinations
+- [ ] Packing list recommendations
 
 ### Phase 3 (v2.0)
 - [ ] Social sharing of itineraries
 - [ ] User reviews and ratings for destinations
 - [ ] Payment integration for bookings
-- [ ] Advanced filtering and personalization
 - [ ] Mobile app (React Native)
 - [ ] Offline itinerary access with PWA
+- [ ] GPT-4 integration for even smarter recommendations
 
 ---
 

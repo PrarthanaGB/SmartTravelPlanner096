@@ -1,12 +1,17 @@
-import random
+import os
+import json
 from datetime import datetime
+from dotenv import load_dotenv
+from openai import OpenAI
 
-PLACE_ALIASES = {
-    "Bangalore": "Bengaluru",
-    "Bengalooru": "Bengaluru",
-    "Bengaluru": "Bengaluru"
-}
+# Load environment variables
+load_dotenv()
 
+# Initialize OpenAI client
+api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=api_key) if api_key else None
+
+# Fallback for when API key is not available
 CITY_DATA = {
     "Bengaluru": {
         "coords": [12.9716, 77.5946],
@@ -244,117 +249,210 @@ ROUTE_OFFSETS = [
 ]
 
 
-def normalize_place(place):
-    if not place:
-        return "Unknown"
-    cleaned = place.strip().title()
-    return PLACE_ALIASES.get(cleaned, cleaned)
-
-
-def choose_city(place):
-    normalized = normalize_place(place)
-    return CITY_DATA.get(normalized, {
-        "coords": DEFAULT_COORDS,
-        "attractions": [f"historic district of {normalized}", f"local market in {normalized}", f"famous city landmark in {normalized}"],
-        "food": ["local specialties", "street food favorites", "popular regional dishes"],
-        "hotels": [f"{normalized} Comfort Stay", f"{normalized} Urban Hotel", f"{normalized} Central Inn"],
-        "medical": [f"{normalized} Health Clinic", f"{normalized} Medical Center", f"{normalized} Care Hospital"],
-        "transport": [f"{normalized} Airport", f"{normalized} Bus Station", f"{normalized} Railway Station"]
-    })
-
-
-def build_route_points(city_data):
-    """Build route points using real attraction coordinates"""
-    points = []
-    attractions = city_data.get("attractions", [])
-    attractions_coords = city_data.get("attractions_coords", [])
-    
-    for idx, attraction in enumerate(attractions):
-        if idx < len(attractions_coords):
-            coords = attractions_coords[idx]
-            points.append({
-                "label": attraction,
-                "lat": coords[0],
-                "lng": coords[1]
-            })
-    return points
-
-
-def build_nearby_points(city_data, category):
-    """Build nearby points using real coordinates from category"""
-    points = []
-    category_names = city_data.get(category, [])
-    category_coords_key = f"{category}_coords"
-    category_coords = city_data.get(category_coords_key, [])
-    
-    for idx, name in enumerate(category_names[:6]):
-        if idx < len(category_coords):
-            coords = category_coords[idx]
-            points.append({
-                "label": name,
-                "lat": coords[0],
-                "lng": coords[1]
-            })
-    return points
-
-
-def build_day_plan(day, city, food_options, transport_description):
-    attractions = city.get("attractions", [])
-    attraction = attractions[(day - 1) % len(attractions)] if attractions else "local attractions"
-    food_item = food_options[(day - 1) % len(food_options)] if food_options else "local cuisine"
-    
-    morning = DAILY_TEMPLATES[0].format(attraction=attraction)
-    mid = DAILY_TEMPLATES[1].format(attraction=attraction)
-    afternoon = DAILY_TEMPLATES[2].format(attraction=attraction)
-    dinner = DAILY_TEMPLATES[3].format(food=food_item)
-    evening = DAILY_TEMPLATES[4]
-
-    return {
-        "day": f"Day {day}",
-        "title": f"{attraction} and local highlights",
-        "activities": [morning, mid, afternoon, dinner, evening],
-        "recommended_meal": food_item,
-        "transport": transport_description
-    }
-
-
 def generate_itinerary(place, days, budget, transport):
-    place_name = normalize_place(place)
-    city = choose_city(place_name)
-    days = max(1, min(10, int(days)))
+    """
+    Generate a detailed travel itinerary using OpenAI API
+    
+    Args:
+        place (str): Destination city/place
+        days (int): Number of days for the trip
+        budget (int): Budget in thousands (₹)
+        transport (str): Preferred transportation mode
+    
+    Returns:
+        dict: Comprehensive travel itinerary with attractions, food, hotels, and medical facilities
+    """
+    
+    # Use AI if API key is configured, otherwise fallback to template-based approach
+    if api_key and client:
+        return _generate_ai_itinerary(place, days, budget, transport)
+    else:
+        return _generate_template_itinerary(place, days, budget, transport)
+
+
+def _generate_ai_itinerary(place, days, budget, transport):
+    """Generate itinerary using OpenAI GPT API"""
+    try:
+        days = max(1, min(14, int(days)))
+        budget = max(1, float(budget))
+        
+        prompt = f"""
+Create a detailed {days}-day travel itinerary for {place} with a budget of ₹{budget}K using {transport} as primary transportation.
+
+Return ONLY valid JSON (no markdown, no extra text) with this exact structure:
+{{
+    "destination": "{place}",
+    "days": {days},
+    "budget": "{budget}K",
+    "transport": "{transport}",
+    "coords": [12.9716, 77.5946],
+    "itinerary": [
+        {{
+            "day": 1,
+            "title": "Day 1: Arrival",
+            "activities": ["Arrive and settle in", "Explore hotel area", "Get familiar with city"],
+            "restaurant": "Local restaurant name",
+            "hotel": "Hotel type and name",
+            "estimated_cost": 5000
+        }}
+    ],
+    "route_points": [
+        {{"label": "Attraction 1", "lat": 12.9716, "lng": 77.5946}},
+        {{"label": "Attraction 2", "lat": 12.9352, "lng": 77.5846}}
+    ],
+    "nearby": {{
+        "stay": [{{"label": "Hotel Name", "lat": 12.9800, "lng": 77.6050}}],
+        "food": [{{"label": "Restaurant Name", "lat": 12.9829, "lng": 77.6046}}],
+        "medical": [{{"label": "Hospital Name", "lat": 12.9680, "lng": 77.6080}}],
+        "transport": [{{"label": "Airport/Station", "lat": 13.1939, "lng": 77.7064}}]
+    }},
+    "tips": ["Tip 1", "Tip 2"],
+    "best_time": "Season recommendation"
+}}
+
+Important:
+- Include realistic coordinates (lat/lng) for all locations
+- Provide accurate pricing in Indian Rupees
+- Include real attractions and restaurants for the destination
+- Make sure the total budget is realistic
+- Each day should have 3-4 activities
+- Must return ONLY valid JSON, nothing else
+"""
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert travel planner. Return ONLY valid JSON, no markdown, no explanations."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
+            max_tokens=2500
+        )
+        
+        # Extract response
+        content = response.choices[0].message.content.strip()
+        
+        # Remove markdown if present
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        
+        itinerary_data = json.loads(content)
+        
+        # Ensure required fields
+        if "plans" not in itinerary_data:
+            itinerary_data["plans"] = [{
+                "name": "AI-Generated Itinerary",
+                "summary": f"A detailed {days}-day tour of {place}",
+                "details": itinerary_data.get("itinerary", [])
+            }]
+        
+        itinerary_data["generated_at"] = datetime.utcnow().isoformat() + "Z"
+        return itinerary_data
+        
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
+        # Fallback to template-based
+        return _generate_template_itinerary(place, days, budget, transport)
+    except Exception as e:
+        print(f"AI generation error: {e}")
+        # Fallback to template-based
+        return _generate_template_itinerary(place, days, budget, transport)
+
+
+def _generate_template_itinerary(place, days, budget, transport):
+    """Fallback template-based itinerary generation"""
+    import random
+    
+    place_name = place.strip().title() if place else "Unknown"
+    days = max(1, min(14, int(days)))
     budget = max(1, float(budget))
     budget_per_day = round(budget / days, 2)
-    transport_key = transport.strip().lower() if transport else "other"
-    transport_description = TRANSPORT_STYLE.get(transport_key, TRANSPORT_STYLE["other"])
-    hotel_tier = "Premium" if budget_per_day > 200 else "Standard" if budget_per_day > 100 else "Budget"
-
-    meal_types = random.sample(city["food"], min(4, len(city["food"])))
-    days_plans = [build_day_plan(day, city, meal_types, transport_description) for day in range(1, days + 1)]
-
-    route_points = build_route_points(city)
+    
+    # Get city data or use defaults
+    city = CITY_DATA.get(place_name, {})
+    
+    if not city:
+        # Default coordinates for generic places
+        city = {
+            "coords": [20.5937, 78.9629],
+            "attractions": [f"Main attractions in {place_name}", f"Local market", f"Historical site"],
+            "attractions_coords": [[20.5937, 78.9629], [20.5940, 78.9632], [20.5935, 78.9625]],
+            "food": ["Local cuisine", "Street food", "Traditional restaurants"],
+            "food_coords": [[20.5937, 78.9629], [20.5940, 78.9632], [20.5935, 78.9625]],
+            "hotels": [f"{place_name} Hotel", f"Budget Stay", f"Premium Resort"],
+            "hotels_coords": [[20.5937, 78.9629], [20.5940, 78.9632], [20.5935, 78.9625]],
+            "medical": [f"{place_name} Hospital", "Health Clinic", "Medical Center"],
+            "medical_coords": [[20.5937, 78.9629], [20.5940, 78.9632], [20.5935, 78.9625]],
+            "transport": [f"{place_name} Airport", "Bus Station", "Railway Station"],
+            "transport_coords": [[20.5937, 78.9629], [20.5940, 78.9632], [20.5935, 78.9625]]
+        }
+    
+    # Build route points
+    route_points = []
+    attractions = city.get("attractions", [])
+    attractions_coords = city.get("attractions_coords", [])
+    for idx, attr in enumerate(attractions[:5]):
+        if idx < len(attractions_coords):
+            coords = attractions_coords[idx]
+            route_points.append({"label": attr, "lat": coords[0], "lng": coords[1]})
+    
+    # Build nearby points
+    def build_nearby(category):
+        names = city.get(category, [])
+        coords_key = f"{category}_coords"
+        coords = city.get(coords_key, [])
+        points = []
+        for idx, name in enumerate(names[:3]):
+            if idx < len(coords):
+                points.append({"label": name, "lat": coords[idx][0], "lng": coords[idx][1]})
+        return points
+    
     nearby = {
-        "stay": build_nearby_points(city, "hotels"),
-        "food": build_nearby_points(city, "food"),
-        "medical": build_nearby_points(city, "medical"),
-        "transport": build_nearby_points(city, "transport")
+        "stay": build_nearby("hotels"),
+        "food": build_nearby("food"),
+        "medical": build_nearby("medical"),
+        "transport": build_nearby("transport")
     }
-
+    
+    # Generate day plans
+    day_plans = []
+    for day in range(1, days + 1):
+        attraction = attractions[(day - 1) % len(attractions)] if attractions else "Local site"
+        day_plans.append({
+            "day": f"Day {day}",
+            "title": f"Exploring {place_name} - Day {day}",
+            "activities": [
+                f"Visit {attraction}",
+                "Explore local markets",
+                "Try local cuisine",
+                "Relax and enjoy the city",
+                "Evening entertainment"
+            ]
+        })
+    
     return {
         "place": place_name,
         "days": days,
         "budget": f"{budget}K",
         "daily_budget": f"{budget_per_day}K",
-        "transport": transport_description,
-        "hotel": HOTEL_TIERS[hotel_tier],
-        "coords": city["coords"],
+        "transport": transport or "Various",
+        "coords": city.get("coords", [20.5937, 78.9629]),
         "route_points": route_points,
         "nearby": nearby,
         "generated_at": datetime.utcnow().isoformat() + "Z",
-        "plans": [
-            {
-                "name": "Balanced Experience",
-                "summary": f"A detailed {days}-day tour of {place_name} with unique daily activities, real local meals, and useful route planning.",
-                "details": days_plans
-            }
-        ]
+        "plans": [{
+            "name": "Suggested Itinerary",
+            "summary": f"A {days}-day tour of {place_name}",
+            "details": day_plans
+        }],
+        "note": "Using template-based itinerary. Configure OPENAI_API_KEY for AI-powered recommendations."
     }
+
