@@ -1,6 +1,6 @@
 # 🌍 Smart Travel Planner
 
-A full-stack web application that leverages AI to generate personalized travel itineraries. Users can input their destination, trip duration, budget, and preferred transportation mode to receive AI-powered travel recommendations.
+A full-stack web application that generates personalized travel itineraries with beautiful maps and recommendations. Users can register, log in, and input their destination, trip duration, budget, and preferred transportation mode to receive curated travel recommendations.
 
 ---
 
@@ -8,23 +8,35 @@ A full-stack web application that leverages AI to generate personalized travel i
 
 ### 🔐 **User Authentication**
 
-- User registration and login functionality
-- Secure password handling
-- Session management with logout
+- User registration with email validation
+- Secure login with password hashing (werkzeug.security)
+- Session persistence using localStorage
+- Profile welcome message with user email
 
-### 🤖 **AI-Powered Itinerary Generation**
+### 🗺️ **Itinerary & Map Features**
 
-- Smart recommendations based on:
-  - **Destination** - Select any place in the world
-  - **Duration** - Trip length in days
-  - **Budget** - Cost constraints for better recommendations
-  - **Transportation** - Preferred travel mode (flight, train, car, etc.)
+- Generate customized travel recommendations
+- Interactive Leaflet.js map with markers for:
+  - 🏨 Hotels & Accommodations
+  - 🍽️ Restaurants & Food Options
+  - 🏥 Medical Facilities
+  - 🚌 Transportation Hubs
+  - 🎯 Tourist Attractions
+- Category-based tabs for easy filtering
+- Download itinerary as PDF
 
-### 📍 **Interactive Dashboard**
+### 📍 **Supported Destinations**
 
-- User-friendly interface for trip planning
-- Real-time map integration (Leaflet.js)
-- Quick and easy itinerary generation
+- 🇮🇳 **Bengaluru** - Bangalore's tech hub with detailed attractions
+- 🇮🇳 **Delhi** - India's capital with historic sites
+- *(More cities coming in v1.1)*
+
+### 💡 **Smart Recommendations**
+
+- Day-by-day activity suggestions
+- Budget-conscious recommendations
+- Transportation mode preferences
+- Location-based point of interest clustering
 
 ---
 
@@ -139,25 +151,29 @@ SmartTravelPlanner/
 | Method | Endpoint    | Description               |
 | ------ | ----------- | ------------------------- |
 | POST   | `/register` | Create a new user account |
-| POST   | `/login`    | User login                |
-| POST   | `/logout`   | User logout               |
+| POST   | `/login`    | User login with credentials |
 
 ### AI Routes
 
 | Method | Endpoint | Description                   |
 | ------ | -------- | ----------------------------- |
-| POST   | `/ai`    | Generate AI-powered itinerary |
+| POST   | `/ai`    | Generate itinerary recommendations |
 
 **Example Request:**
 
 ```json
 {
-  "place": "Paris",
+  "place": "Bengaluru",
   "days": 5,
   "budget": 2000,
   "transport": "flight"
 }
 ```
+
+**Supported Destinations (v1.0):**
+- 🇮🇳 **Bengaluru** - India's Tech Hub
+- 🇮🇳 **Delhi** - India's Capital
+- ⚠️ Note: Other cities require database expansion (Coming Soon)
 
 ---
 
@@ -177,11 +193,14 @@ SmartTravelPlanner/
    - Click "Generate Itinerary"
 
 3. **View Recommendations**
-   - Receive AI-generated itinerary with:
-     - Day-by-day activities
-     - Estimated costs
-     - Transportation suggestions
-     - Points of interest with map integration
+   - Receive personalized itinerary with:
+     - Day-by-day suggested activities
+     - Popular attractions and restaurants
+     - Hotels and medical facilities
+     - Transport options
+     - Points of interest displayed on interactive Leaflet map
+   - Download itinerary as PDF
+   - View route map with different categories (Stay, Food, Medical, Transport)
 
 ---
 
@@ -189,21 +208,15 @@ SmartTravelPlanner/
 
 ### Users Table
 
-- `id` - Primary key
-- `email` - User email
-- `password` - Hashed password
-- `created_at` - Account creation timestamp
+- `id` - Primary key (AUTO_INCREMENT)
+- `email` - User email (UNIQUE)
+- `password` - Hashed password using werkzeug.security
+- `created_at` - Account creation timestamp (Default: CURRENT_TIMESTAMP)
 
-### Itineraries Table
-
-- `id` - Primary key
-- `user_id` - Foreign key to users
-- `destination` - Trip destination
-- `duration` - Number of days
-- `budget` - Trip budget
-- `transportation` - Preferred mode
-- `generated_plan` - AI-generated itinerary
-- `created_at` - Generation timestamp
+**Current Implementation:**
+- User authentication and registration only
+- Itineraries stored in frontend localStorage (not in database yet)
+- Ready for future database expansion
 
 ---
 
@@ -245,15 +258,26 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-## 💡 Future Enhancements
+## 💡 Future Enhancements (Roadmap)
 
-- [ ] Multi-language support
-- [ ] Real-time price tracking for flights and hotels
-- [ ] User reviews and ratings for destinations
+### Phase 1 (v1.1)
+- [ ] Add 5+ more Indian cities (Mumbai, Goa, Jaipur, etc.)
+- [ ] Itinerary persistence to database
+- [ ] User itinerary history and favorites
+
+### Phase 2 (v1.2)
+- [ ] Real AI integration (OpenAI API or similar)
+- [ ] Real-time flight price tracking
+- [ ] Hotel booking integration
+- [ ] Multi-language support (Hindi, Spanish, etc.)
+
+### Phase 3 (v2.0)
 - [ ] Social sharing of itineraries
-- [ ] Offline itinerary access
+- [ ] User reviews and ratings for destinations
 - [ ] Payment integration for bookings
 - [ ] Advanced filtering and personalization
+- [ ] Mobile app (React Native)
+- [ ] Offline itinerary access with PWA
 
 ---
 
@@ -261,23 +285,42 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ### Database Connection Issues
 
-- Ensure MySQL is running
-- Verify credentials in `configure.env`
-- Check database exists: `travel_db`
+- The app will run in **demo mode** if MySQL is unavailable (user data won't persist)
+- To use persistent storage:
+  - Ensure MySQL is running: `services.msc` (Windows) or `brew services start mysql` (macOS)
+  - Verify credentials in `backend/configure.env`
+  - Create database: `CREATE DATABASE travel_db;`
 
 ### Flask Port Already in Use
 
+Port 5000 is already in use? Kill the process:
+
 ```bash
-# Find and kill process on port 5000
-netstat -ano | findstr :5000  # Windows
-lsof -i :5000  # macOS/Linux
+# Windows
+netstat -ano | findstr :5000
+taskkill /PID <PID> /F
+
+# macOS/Linux
+lsof -i :5000
+kill -9 <PID>
+```
+
+Or change port in `backend/app.py`:
+```python
+app.run(debug=True, port=5001)  # Change to different port
 ```
 
 ### Frontend Not Loading
 
-- Clear browser cache (Ctrl+Shift+Delete)
-- Verify Flask server is running
-- Check console for API errors (F12)
+- Clear browser cache: **Ctrl+Shift+Delete** (Chrome/Edge)
+- Verify Flask server is running: Visit `http://localhost:5000` in browser
+- Check console for API errors: **F12** → Console tab
+- Ensure static folder path is correct in `backend/app.py`
+
+### Database in Demo Mode
+
+- User registration works but won't persist after server restart
+- To enable persistence, configure MySQL properly (see Database Connection Issues)
 
 ---
 
